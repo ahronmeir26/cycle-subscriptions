@@ -1,14 +1,14 @@
 # This file stores configurations for your Shopify app.
 name = "Cycle Subscriptions"
 client_id = "4d4f4808bca596b5069ad18138e87734"
-application_url = "https://shirt-subscriptions-r7havy3edq-uc.a.run.app"
+application_url = "https://cycle-subs.aistone.com"
 embedded = true
 
 [auth]
 redirect_urls = [
-  "https://shirt-subscriptions-r7havy3edq-uc.a.run.app/auth/callback",
-  "https://shirt-subscriptions-r7havy3edq-uc.a.run.app/auth/shopify/callback",
-  "https://shirt-subscriptions-r7havy3edq-uc.a.run.app/api/auth/callback"
+  "https://cycle-subs.aistone.com/auth/callback",
+  "https://cycle-subs.aistone.com/auth/shopify/callback",
+  "https://cycle-subs.aistone.com/api/auth/callback"
 ]
 
 [access_scopes]

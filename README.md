@@ -105,7 +105,7 @@ Deploy:
 gcloud builds submit --config cloudbuild.yaml --project ai-stone
 ```
 
-After the first deployment, update `SHOPIFY_APP_URL`, `application_url`, and the redirect URLs in `shopify.app.toml` if Cloud Run gives you a different service URL, then run:
+After the first deployment, keep `SHOPIFY_APP_URL`, `application_url`, and the redirect URLs in `shopify.app.toml` pointed at `https://cycle-subs.aistone.com`, then run:
 
 ```sh
 npm run deploy

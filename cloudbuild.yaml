@@ -2,7 +2,7 @@ substitutions:
   _SERVICE_NAME: shirt-subscriptions
   _REGION: us-central1
   _AR_REPOSITORY: shirt-subscriptions
-  _SHOPIFY_APP_URL: https://shirt-subscriptions-r7havy3edq-uc.a.run.app
+  _SHOPIFY_APP_URL: https://cycle-subs.aistone.com
   _SCOPES: write_products,read_orders,read_customers,read_own_subscription_contracts,write_own_subscription_contracts
   _CLOUD_SQL_INSTANCE: ai-stone:us-central1:glass-pane-db
 

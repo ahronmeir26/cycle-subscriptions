@@ -1,0 +1,60 @@
+substitutions:
+  _SERVICE_NAME: shirt-subscriptions
+  _REGION: us-central1
+  _AR_REPOSITORY: shirt-subscriptions
+  _SHOPIFY_APP_URL: https://shirt-subscriptions-r7havy3edq-uc.a.run.app
+  _SCOPES: write_products,read_orders,read_customers,read_own_subscription_contracts,write_own_subscription_contracts
+  _CLOUD_SQL_INSTANCE: ai-stone:us-central1:glass-pane-db
+
+steps:
+  - id: Build container
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPOSITORY}/${_SERVICE_NAME}:$BUILD_ID
+      - .
+
+  - id: Push container
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPOSITORY}/${_SERVICE_NAME}:$BUILD_ID
+
+  - id: Deploy to Cloud Run
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE_NAME}
+      - --image
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPOSITORY}/${_SERVICE_NAME}:$BUILD_ID
+      - --region
+      - ${_REGION}
+      - --platform
+      - managed
+      - --allow-unauthenticated
+      - --port
+      - "3000"
+      - --min-instances
+      - "0"
+      - --max-instances
+      - "2"
+      - --cpu
+      - "1"
+      - --cpu-boost
+      - --memory
+      - "512Mi"
+      - --set-env-vars
+      - ^@^NODE_ENV=production@SCOPES=${_SCOPES}@SHOPIFY_APP_URL=${_SHOPIFY_APP_URL}
+      - --set-secrets
+      - SHOPIFY_CLIENT_ID=shirt-subscriptions-client-id:latest,SHOPIFY_CLIENT_SECRET=shirt-subscriptions-client-secret:latest,SHOPIFY_API_KEY=shirt-subscriptions-client-id:latest,SHOPIFY_API_SECRET=shirt-subscriptions-client-secret:latest,DATABASE_URL=shirt-subscriptions-db-url:latest
+      - --add-cloudsql-instances
+      - ${_CLOUD_SQL_INSTANCE}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPOSITORY}/${_SERVICE_NAME}:$BUILD_ID

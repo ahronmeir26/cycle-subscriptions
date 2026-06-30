@@ -1,0 +1,15 @@
+.cache
+build
+node_modules
+.git
+.npm-cache
+.shopify
+.env
+.env.*
+!.env.example
+!.env.gcloud.example
+app/build
+public/build
+public/_dev
+prisma/dev.sqlite
+prisma/dev.sqlite-journal

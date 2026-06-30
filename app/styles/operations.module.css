@@ -1,0 +1,67 @@
+.list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  border: 1px solid #dde3ea;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.85rem;
+}
+
+.row div {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.row strong {
+  overflow-wrap: anywhere;
+  color: #182a34;
+}
+
+.row span,
+.summary span {
+  color: #62707c;
+  font-size: 0.86rem;
+}
+
+.badge,
+.badgeMuted {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-weight: 700;
+}
+
+.badge {
+  background: #eaf7f0;
+  color: #006b42;
+}
+
+.badgeMuted {
+  background: #edf2ff;
+  color: #274c96;
+}
+
+.summary {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.summary strong {
+  color: #142530;
+  font-size: 1.1rem;
+}
+
+@media (max-width: 40rem) {
+  .row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

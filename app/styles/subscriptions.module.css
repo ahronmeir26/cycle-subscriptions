@@ -1,0 +1,215 @@
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.heroText,
+.heroPanel,
+.metric,
+.accountItem,
+.eventItem {
+  border: 1px solid #dde3ea;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.heroText {
+  padding: 1.25rem;
+}
+
+.heroText h2 {
+  margin: 0;
+  max-width: 48rem;
+  color: #102027;
+  font-size: 1.65rem;
+  line-height: 1.2;
+}
+
+.heroText p {
+  margin: 0.65rem 0 0;
+  max-width: 44rem;
+  color: #45535f;
+}
+
+.kicker {
+  color: #006c67;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.heroPanel {
+  display: grid;
+  gap: 0.65rem;
+  align-content: center;
+  padding: 1.25rem;
+  border-left: 4px solid #00a47c;
+}
+
+.heroPanel strong {
+  color: #16262e;
+  font-size: 1.35rem;
+}
+
+.heroPanel span:not(.statusPill) {
+  color: #5b6874;
+}
+
+.statusPill {
+  width: max-content;
+  border-radius: 999px;
+  background: #edf7f4;
+  color: #006c67;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+  color: #24333d;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #b9c3ce;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #12202a;
+  font: inherit;
+  font-weight: 400;
+  padding: 0.65rem 0.75rem;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
+.actionRow {
+  display: flex;
+  justify-content: flex-end;
+  grid-column: 1 / -1;
+}
+
+.publishGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.sectionLead,
+.metaText {
+  margin: 0;
+  color: #44515d;
+}
+
+.metaText {
+  margin-top: 0.5rem;
+  font-size: 0.86rem;
+}
+
+.inlineForm {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.metric {
+  display: grid;
+  gap: 0.5rem;
+  min-height: 6.5rem;
+  padding: 1rem;
+}
+
+.metric span {
+  color: #5e6a75;
+  font-size: 0.84rem;
+}
+
+.metric strong {
+  color: #13232d;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.testForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.accountList,
+.eventList {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.accountItem,
+.eventItem {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem;
+}
+
+.accountItem strong,
+.eventItem strong {
+  overflow-wrap: anywhere;
+  color: #182a34;
+}
+
+.accountItem span,
+.eventItem span {
+  color: #62707c;
+  font-size: 0.84rem;
+}
+
+.eventType {
+  width: max-content;
+  border-radius: 999px;
+  background: #edf2ff;
+  color: #274c96;
+  padding: 0.15rem 0.5rem;
+  text-transform: capitalize;
+}
+
+@media (max-width: 48rem) {
+  .hero,
+  .formGrid,
+  .publishGrid,
+  .metrics,
+  .testForm {
+    grid-template-columns: 1fr;
+  }
+
+  .actionRow,
+  .inlineForm {
+    justify-content: stretch;
+  }
+}

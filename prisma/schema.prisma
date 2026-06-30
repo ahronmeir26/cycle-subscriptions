@@ -44,6 +44,8 @@ model SubscriptionProgram {
   productGids        String                @default("")
   sellingPlanGroupId String?
   sellingPlanId      String?
+  notifyRewards      Boolean               @default(true)
+  autoSyncSellingPlan Boolean              @default(false)
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
   accounts           SubscriptionAccount[]

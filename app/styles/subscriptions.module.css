@@ -1,3 +1,13 @@
+.headerActions {
+  display: flex;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.programSwitcher {
+  min-width: min(22rem, 55vw);
+}
+
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
@@ -58,15 +68,139 @@
   color: #5b6874;
 }
 
-.statusPill {
+.statusPill,
+.eventType {
   width: max-content;
   border-radius: 999px;
-  background: #edf7f4;
-  color: #006c67;
-  padding: 0.25rem 0.65rem;
+  padding: 0.18rem 0.55rem;
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: capitalize;
+}
+
+.statusPill {
+  background: #edf7f4;
+  color: #006c67;
+}
+
+.programGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+}
+
+.detailList {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.detailList div {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.detailList dt {
+  color: #60707c;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.detailList dd {
+  margin: 0;
+  color: #172832;
+}
+
+.actionColumn,
+.inlineForm {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.publishGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.sectionLead,
+.metaText {
+  margin: 0;
+  color: #44515d;
+}
+
+.metaText {
+  margin-top: 0.5rem;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.metric {
+  display: grid;
+  gap: 0.5rem;
+  min-height: 6.5rem;
+  padding: 1rem;
+}
+
+.metric span {
+  color: #5e6a75;
+  font-size: 0.84rem;
+}
+
+.metric strong {
+  color: #13232d;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 42rem;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid #e2e8ee;
+  padding: 0.75rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.table th {
+  color: #60707c;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.table td strong,
+.table td span {
+  display: block;
+}
+
+.table td span {
+  margin-top: 0.15rem;
+  color: #65727e;
+  font-size: 0.82rem;
+}
+
+.overrideGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: end;
 }
 
 .formGrid {
@@ -111,58 +245,16 @@
   grid-column: 1 / -1;
 }
 
-.publishGrid {
+.settingsForm {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1rem;
-  align-items: center;
-}
-
-.sectionLead,
-.metaText {
-  margin: 0;
-  color: #44515d;
-}
-
-.metaText {
-  margin-top: 0.5rem;
-  font-size: 0.86rem;
-}
-
-.inlineForm {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
-.metric {
-  display: grid;
-  gap: 0.5rem;
-  min-height: 6.5rem;
-  padding: 1rem;
-}
-
-.metric span {
-  color: #5e6a75;
-  font-size: 0.84rem;
-}
-
-.metric strong {
-  color: #13232d;
-  font-size: 2rem;
-  line-height: 1;
-}
-
-.testForm {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-  gap: 1rem;
-  align-items: end;
+.settingsForm label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #24333d;
 }
 
 .accountList,
@@ -178,6 +270,11 @@
   padding: 0.75rem;
 }
 
+.accountItem {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
 .accountItem strong,
 .eventItem strong {
   overflow-wrap: anywhere;
@@ -191,25 +288,96 @@
 }
 
 .eventType {
-  width: max-content;
-  border-radius: 999px;
   background: #edf2ff;
   color: #274c96;
-  padding: 0.15rem 0.5rem;
-  text-transform: capitalize;
 }
 
-@media (max-width: 48rem) {
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  background: rgba(14, 28, 38, 0.48);
+  padding: 1.5rem;
+}
+
+.modal {
+  width: min(64rem, 100%);
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  border: 1px solid #d4dde6;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(22, 34, 44, 0.26);
+  padding: 1.25rem;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.modalHeader h2 {
+  margin: 0;
+  color: #152733;
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.closeButton {
+  display: grid;
+  width: 2.35rem;
+  min-height: 2.35rem;
+  place-items: center;
+  border: 1px solid #b8c3ce;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #172832;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 0;
+}
+
+@media (max-width: 64rem) {
+  .headerActions,
   .hero,
-  .formGrid,
+  .programGrid,
   .publishGrid,
   .metrics,
-  .testForm {
+  .overrideGrid,
+  .formGrid {
     grid-template-columns: 1fr;
   }
 
-  .actionRow,
-  .inlineForm {
+  .headerActions,
+  .actionColumn,
+  .inlineForm,
+  .actionRow {
     justify-content: stretch;
+  }
+
+  .programSwitcher {
+    min-width: 0;
+  }
+
+  .accountItem {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 42rem) {
+  .detailList div {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+  }
+
+  .modalBackdrop {
+    padding: 0.75rem;
   }
 }

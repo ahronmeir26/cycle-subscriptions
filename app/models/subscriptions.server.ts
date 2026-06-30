@@ -10,6 +10,7 @@ export type SubscriptionProgramConfig = {
 
 export type OrderCycleInput = {
   shop: string;
+  programId?: string | null;
   orderId?: string | null;
   customerId?: string | null;
   customerEmail?: string | null;
@@ -58,6 +59,35 @@ export async function getOrCreateProgram(shop: string) {
   });
 }
 
+export async function getSelectedProgram(shop: string, programId?: string | null) {
+  if (programId) {
+    const selected = await db.subscriptionProgram.findFirst({
+      where: { id: programId, shop },
+    });
+
+    if (selected) return selected;
+  }
+
+  return getOrCreateProgram(shop);
+}
+
+export async function createProgram(
+  shop: string,
+  config: SubscriptionProgramConfig,
+) {
+  return db.subscriptionProgram.create({
+    data: {
+      shop,
+      name: config.name || "Shirt replenishment",
+      shirtQuantity: config.shirtQuantity,
+      intervalMonths: config.intervalMonths,
+      freeEveryCycles: config.freeEveryCycles,
+      productGids: config.productGids,
+      status: "configured",
+    },
+  });
+}
+
 export async function saveProgram(
   shop: string,
   id: string,
@@ -77,7 +107,7 @@ export async function saveProgram(
 }
 
 export async function recordOrderCycle(input: OrderCycleInput) {
-  const program = await getOrCreateProgram(input.shop);
+  const program = await getSelectedProgram(input.shop, input.programId);
   const lookup = input.contractId
     ? { contractId: input.contractId }
     : input.customerId
@@ -157,20 +187,38 @@ export async function recordOrderCycle(input: OrderCycleInput) {
   });
 }
 
-export async function getDashboard(shop: string) {
-  const program = await getOrCreateProgram(shop);
-  const [activeAccounts, pendingRewards, recentEvents, topAccounts] =
-    await Promise.all([
+export async function getDashboard(shop: string, programId?: string | null) {
+  const program = await getSelectedProgram(shop, programId);
+  const [
+    programs,
+    activeAccounts,
+    rewardEvents,
+    fulfilledRewardEvents,
+    recentEvents,
+    topAccounts,
+    subscriberAccounts,
+  ] = await Promise.all([
+      db.subscriptionProgram.findMany({
+        where: { shop },
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      }),
       db.subscriptionAccount.count({
         where: { shop, programId: program.id, status: "active" },
       }),
-      db.subscriptionEvent.count({
+      db.subscriptionEvent.findMany({
         where: { shop, programId: program.id, type: "reward_earned" },
+        orderBy: { createdAt: "desc" },
+        take: 25,
+        include: { account: true },
+      }),
+      db.subscriptionEvent.findMany({
+        where: { shop, programId: program.id, type: "reward_fulfilled" },
+        select: { accountId: true, cycleNumber: true },
       }),
       db.subscriptionEvent.findMany({
         where: { shop, programId: program.id },
         orderBy: { createdAt: "desc" },
-        take: 8,
+        take: 12,
         include: { account: true },
       }),
       db.subscriptionAccount.findMany({
@@ -178,7 +226,31 @@ export async function getDashboard(shop: string) {
         orderBy: [{ paidCycles: "desc" }, { updatedAt: "desc" }],
         take: 5,
       }),
+      db.subscriptionAccount.findMany({
+        where: { shop, programId: program.id },
+        orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+        take: 25,
+      }),
     ]);
 
-  return { program, activeAccounts, pendingRewards, recentEvents, topAccounts };
+  const fulfilledKeys = new Set(
+    fulfilledRewardEvents.map(
+      (event) => `${event.accountId ?? ""}:${event.cycleNumber ?? ""}`,
+    ),
+  );
+  const pendingRewardEvents = rewardEvents.filter(
+    (event) =>
+      !fulfilledKeys.has(`${event.accountId ?? ""}:${event.cycleNumber ?? ""}`),
+  );
+
+  return {
+    programs,
+    program,
+    activeAccounts,
+    pendingRewards: pendingRewardEvents.length,
+    pendingRewardEvents,
+    recentEvents,
+    topAccounts,
+    subscriberAccounts,
+  };
 }

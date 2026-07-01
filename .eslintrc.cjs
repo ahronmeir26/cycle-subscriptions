@@ -20,6 +20,12 @@ module.exports = {
     es6: true,
   },
   ignorePatterns: ["!**/.server", "!**/.client"],
+  settings: {
+    "import/core-modules": [
+      "@shopify/ui-extensions-react/checkout",
+      "@shopify/ui-extensions-react/customer-account",
+    ],
+  },
 
   // Base config
   extends: ["eslint:recommended"],

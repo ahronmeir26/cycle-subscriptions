@@ -1,0 +1,27 @@
+# Checkout subscription upsell extension.
+# Confirms the milestone reward when a subscription line is in the cart, and
+# nudges one-time buyers toward subscribing.
+api_version = "2025-10"
+
+[[extensions]]
+name = "Subscription upsell"
+handle = "checkout-subscription-upsell"
+type = "ui_extension"
+
+  [[extensions.targeting]]
+  module = "./src/Checkout.tsx"
+  target = "purchase.checkout.block.render"
+
+  [extensions.settings]
+
+    [[extensions.settings.fields]]
+    key = "reward_text"
+    type = "single_line_text_field"
+    name = "Reward message"
+    description = "Shown when a subscription is in the cart, e.g. the free-shipment milestone."
+
+    [[extensions.settings.fields]]
+    key = "upsell_text"
+    type = "single_line_text_field"
+    name = "Upsell message"
+    description = "Shown to one-time buyers to encourage subscribing."

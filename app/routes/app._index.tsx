@@ -19,31 +19,19 @@ import db from "../db.server";
 import {
   createProgram,
   getDashboard,
+  markRewardFulfilled,
   normalizeProductGids,
   parsePositiveInteger,
   recordOrderCycle,
   saveProgram,
 } from "../models/subscriptions.server";
+import { syncSellingPlanGroup } from "../models/selling-plans.server";
 import { authenticate } from "../shopify.server";
 import styles from "../styles/subscriptions.module.css";
 
 type ActionResult = {
   status: "success" | "error";
   message: string;
-};
-
-type SellingPlanGroupResponse = {
-  data?: {
-    sellingPlanGroupCreate?: {
-      sellingPlanGroup?: {
-        id: string;
-        sellingPlans: {
-          edges: Array<{ node: { id: string } }>;
-        };
-      };
-      userErrors: Array<{ field?: string[]; message: string }>;
-    };
-  };
 };
 
 type ProgramModalMode = "create" | "edit" | null;
@@ -86,121 +74,37 @@ export const action = async ({
   }
 
   if (intent === "save-program") {
-    await saveProgram(session.shop, program.id, readProgramConfig(formData));
+    const saved = await saveProgram(session.shop, program.id, readProgramConfig(formData));
+
+    if (saved.autoSyncSellingPlan && saved.sellingPlanGroupId) {
+      await syncSellingPlanGroup(admin, saved);
+    }
 
     return {
       status: "success",
-      message: "Subscription program saved.",
+      message:
+        saved.autoSyncSellingPlan && saved.sellingPlanGroupId
+          ? "Subscription program saved and selling plan synced."
+          : "Subscription program saved.",
     };
   }
 
   if (intent === "publish-selling-plan") {
-    const productIds = program.productGids
-      .split(",")
-      .map((id) => id.trim())
-      .filter(Boolean);
-
-    if (productIds.length === 0) {
-      return {
-        status: "error",
-        message:
-          "Add at least one Shopify product ID before publishing the selling plan.",
-      };
-    }
-
-    if (program.sellingPlanGroupId) {
+    try {
+      const result = await syncSellingPlanGroup(admin, program);
       return {
         status: "success",
-        message: "This program already has a Shopify selling plan group.",
+        message:
+          result.action === "created"
+            ? "Selling plan group published to Shopify."
+            : "Selling plan group synced with Shopify.",
       };
-    }
-
-    const response = await admin.graphql(
-      `#graphql
-        mutation CreateSubscriptionSellingPlan(
-          $input: SellingPlanGroupInput!
-          $resources: SellingPlanGroupResourceInput!
-        ) {
-          sellingPlanGroupCreate(input: $input, resources: $resources) {
-            sellingPlanGroup {
-              id
-              sellingPlans(first: 1) {
-                edges {
-                  node {
-                    id
-                  }
-                }
-              }
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `,
-      {
-        variables: {
-          input: {
-            name: program.name,
-            merchantCode: `subscription-ops-${program.id}`,
-            options: ["Delivery cadence"],
-            sellingPlansToCreate: [
-              {
-                name: `${program.shirtQuantity} shirts every ${program.intervalMonths} months`,
-                options: [`Every ${program.intervalMonths} months`],
-                category: "SUBSCRIPTION",
-                billingPolicy: {
-                  recurring: {
-                    interval: "MONTH",
-                    intervalCount: program.intervalMonths,
-                  },
-                },
-                deliveryPolicy: {
-                  recurring: {
-                    interval: "MONTH",
-                    intervalCount: program.intervalMonths,
-                  },
-                },
-                inventoryPolicy: {
-                  reserve: "ON_FULFILLMENT",
-                },
-              },
-            ],
-          },
-          resources: {
-            productIds,
-          },
-        },
-      },
-    );
-    const json = (await response.json()) as SellingPlanGroupResponse;
-    const payload = json.data?.sellingPlanGroupCreate;
-    const errors = payload?.userErrors ?? [];
-
-    if (errors.length > 0 || !payload?.sellingPlanGroup) {
+    } catch (error) {
       return {
         status: "error",
-        message:
-          errors.map((error) => error.message).join(" ") ||
-          "Shopify did not create the selling plan group.",
+        message: error instanceof Error ? error.message : "Selling plan sync failed.",
       };
     }
-
-    await db.subscriptionProgram.update({
-      where: { id: program.id },
-      data: {
-        status: "published",
-        sellingPlanGroupId: payload.sellingPlanGroup.id,
-        sellingPlanId:
-          payload.sellingPlanGroup.sellingPlans.edges[0]?.node.id ?? null,
-      },
-    });
-
-    return {
-      status: "success",
-      message: "Selling plan group published to Shopify.",
-    };
   }
 
   if (intent === "manual-override") {
@@ -280,15 +184,12 @@ export const action = async ({
         };
       }
 
-      await db.subscriptionEvent.create({
-        data: {
-          shop: session.shop,
-          programId: program.id,
-          accountId: account.id,
-          type: "reward_fulfilled",
-          cycleNumber: account.paidCycles,
-          note: "Reward marked fulfilled manually.",
-        },
+      await markRewardFulfilled({
+        shop: session.shop,
+        programId: program.id,
+        accountId: account.id,
+        cycleNumber: account.paidCycles,
+        note: "Reward marked fulfilled manually.",
       });
 
       return {
@@ -316,16 +217,11 @@ export const action = async ({
       };
     }
 
-    await db.subscriptionEvent.create({
-      data: {
-        shop: session.shop,
-        programId: program.id,
-        accountId: rewardEvent.accountId,
-        type: "reward_fulfilled",
-        orderId: rewardEvent.orderId,
-        cycleNumber: rewardEvent.cycleNumber,
-        note: "Reward marked fulfilled from the queue.",
-      },
+    await markRewardFulfilled({
+      shop: session.shop,
+      programId: program.id,
+      rewardEventId: rewardEvent.id,
+      note: "Reward marked fulfilled from the queue.",
     });
 
     return {

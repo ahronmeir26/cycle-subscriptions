@@ -58,6 +58,7 @@ model SubscriptionAccount {
   id              String              @id @default(cuid())
   shop            String
   programId       String?
+  identityKey     String              @default("")
   customerId      String?
   customerEmail   String?
   contractId      String?
@@ -72,6 +73,7 @@ model SubscriptionAccount {
 
   @@index([shop])
   @@index([programId])
+  @@index([identityKey])
   @@index([contractId])
   @@index([customerId])
 }
@@ -81,10 +83,12 @@ model SubscriptionEvent {
   shop        String
   programId   String?
   accountId   String?
+  dedupeKey   String?              @unique
   type        String
   orderId     String?
   cycleNumber Int?
   note        String?
+  metadata    Json?
   createdAt   DateTime             @default(now())
   program     SubscriptionProgram?  @relation(fields: [programId], references: [id], onDelete: SetNull)
   account     SubscriptionAccount?  @relation(fields: [accountId], references: [id], onDelete: SetNull)

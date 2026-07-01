@@ -14,12 +14,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     session.shop,
     url.searchParams.get("programId"),
   );
-  const [rewardEvents, cycleEvents] = await Promise.all([
+  const [earnedRewardEvents, fulfilledRewardEvents, cycleEvents] = await Promise.all([
     db.subscriptionEvent.findMany({
       where: { shop: session.shop, programId: program.id, type: "reward_earned" },
       orderBy: { createdAt: "desc" },
       take: 25,
       include: { account: true },
+    }),
+    db.subscriptionEvent.findMany({
+      where: {
+        shop: session.shop,
+        programId: program.id,
+        type: "reward_fulfilled",
+      },
+      select: { accountId: true, cycleNumber: true },
     }),
     db.subscriptionEvent.findMany({
       where: { shop: session.shop, programId: program.id, type: "cycle_recorded" },
@@ -28,6 +36,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       include: { account: true },
     }),
   ]);
+  const fulfilledKeys = new Set(
+    fulfilledRewardEvents.map(
+      (event) => `${event.accountId ?? ""}:${event.cycleNumber ?? ""}`,
+    ),
+  );
+  const rewardEvents = earnedRewardEvents.filter(
+    (event) =>
+      !fulfilledKeys.has(`${event.accountId ?? ""}:${event.cycleNumber ?? ""}`),
+  );
 
   return { program, rewardEvents, cycleEvents };
 };

@@ -1,0 +1,17 @@
+# Customer account subscription extension.
+# Shows the logged-in subscriber their reward progress toward the next free
+# shipment, both as a profile summary block and a full details page.
+api_version = "2025-10"
+
+[[extensions]]
+name = "Customer subscriptions"
+handle = "customer-subscriptions"
+type = "ui_extension"
+
+  [[extensions.targeting]]
+  module = "./src/ProfileBlock.tsx"
+  target = "customer-account.profile.block.render"
+
+  [[extensions.targeting]]
+  module = "./src/FullPage.tsx"
+  target = "customer-account.page.render"

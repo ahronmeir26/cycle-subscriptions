@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+
 import db from "../db.server";
 
 export type SubscriptionProgramConfig = {
@@ -15,7 +17,16 @@ export type OrderCycleInput = {
   customerId?: string | null;
   customerEmail?: string | null;
   contractId?: string | null;
+  sourceEventId?: string | null;
+  metadata?: Prisma.InputJsonValue;
   note?: string | null;
+};
+
+export type OrderCycleResult = {
+  account: Awaited<ReturnType<typeof db.subscriptionAccount.findFirst>>;
+  program: Awaited<ReturnType<typeof getSelectedProgram>>;
+  earnedReward: boolean;
+  duplicate: boolean;
 };
 
 export function normalizeProductGids(value: FormDataEntryValue | null) {
@@ -106,18 +117,151 @@ export async function saveProgram(
   });
 }
 
+export type RewardSettingsInput = {
+  name: string;
+  shirtQuantity: number;
+  intervalMonths: number;
+  freeEveryCycles: number;
+  notifyRewards: boolean;
+  autoSyncSellingPlan: boolean;
+};
+
+export async function updateRewardSettings(
+  shop: string,
+  id: string,
+  settings: RewardSettingsInput,
+) {
+  return db.subscriptionProgram.update({
+    where: { id, shop },
+    data: {
+      name: settings.name || "Shirt replenishment",
+      shirtQuantity: settings.shirtQuantity,
+      intervalMonths: settings.intervalMonths,
+      freeEveryCycles: settings.freeEveryCycles,
+      notifyRewards: settings.notifyRewards,
+      autoSyncSellingPlan: settings.autoSyncSellingPlan,
+    },
+  });
+}
+
+export function parseBoolean(value: FormDataEntryValue | null) {
+  const normalized = String(value ?? "").toLowerCase();
+  return normalized === "true" || normalized === "on" || normalized === "1";
+}
+
+export function buildAccountIdentityKey(input: {
+  contractId?: string | null;
+  customerId?: string | null;
+  customerEmail?: string | null;
+  orderId?: string | null;
+}) {
+  if (input.contractId) return `contract:${input.contractId}`;
+  if (input.customerId) return `customer:${input.customerId}`;
+  if (input.customerEmail) return `email:${input.customerEmail.toLowerCase()}`;
+  if (input.orderId) return `order:${input.orderId}`;
+  return "unknown";
+}
+
+export function buildCycleDedupeKey(input: {
+  shop: string;
+  sourceEventId?: string | null;
+  orderId?: string | null;
+}) {
+  if (input.sourceEventId) return `webhook:${input.shop}:${input.sourceEventId}`;
+  if (input.orderId) return `order:${input.shop}:${input.orderId}`;
+  return null;
+}
+
+export function nextRewardCycleFor(paidCycles: number, freeEveryCycles: number) {
+  if (freeEveryCycles <= 0) return 0;
+  return (Math.floor(paidCycles / freeEveryCycles) + 1) * freeEveryCycles;
+}
+
+/**
+ * Reward progress for a single subscriber, used by the customer account
+ * extension. Matches the customer by GID, numeric id, or email so it works
+ * regardless of which identifier the storefront/session token provides.
+ */
+export async function getSubscriberStatus(
+  shop: string,
+  lookup: { customerId?: string | null; customerEmail?: string | null },
+) {
+  const program = await getOrCreateProgram(shop);
+
+  const orConditions: Array<Record<string, string>> = [];
+  if (lookup.customerId) {
+    orConditions.push({ customerId: lookup.customerId });
+    const numeric = lookup.customerId.split("/").pop();
+    if (numeric && numeric !== lookup.customerId) {
+      orConditions.push({ customerId: numeric });
+    }
+  }
+  if (lookup.customerEmail) {
+    orConditions.push({ customerEmail: lookup.customerEmail });
+  }
+
+  const account = orConditions.length
+    ? await db.subscriptionAccount.findFirst({
+        where: { shop, OR: orConditions },
+        orderBy: { updatedAt: "desc" },
+      })
+    : null;
+
+  const paidCycles = account?.paidCycles ?? 0;
+  const freeEveryCycles = program.freeEveryCycles;
+  const cyclesIntoReward =
+    freeEveryCycles > 0 ? paidCycles % freeEveryCycles : 0;
+  const cyclesUntilReward =
+    freeEveryCycles > 0 ? (freeEveryCycles - cyclesIntoReward) % freeEveryCycles : 0;
+  const nextRewardCycle =
+    freeEveryCycles > 0
+      ? paidCycles + (cyclesUntilReward === 0 ? freeEveryCycles : cyclesUntilReward)
+      : null;
+
+  return {
+    program: {
+      id: program.id,
+      name: program.name,
+      shirtQuantity: program.shirtQuantity,
+      intervalMonths: program.intervalMonths,
+      freeEveryCycles,
+    },
+    enrolled: Boolean(account),
+    status: account?.status ?? null,
+    paidCycles,
+    freeEveryCycles,
+    cyclesUntilReward,
+    nextRewardCycle,
+    rewardReady: freeEveryCycles > 0 && paidCycles > 0 && cyclesIntoReward === 0,
+  };
+}
+
 export async function recordOrderCycle(input: OrderCycleInput) {
   const program = await getSelectedProgram(input.shop, input.programId);
-  const lookup = input.contractId
-    ? { contractId: input.contractId }
-    : input.customerId
-      ? { customerId: input.customerId }
-      : { customerEmail: input.customerEmail ?? "unknown" };
+  const identityKey = buildAccountIdentityKey(input);
+  const cycleDedupeKey = buildCycleDedupeKey(input);
+
+  if (cycleDedupeKey) {
+    const duplicateEvent = await db.subscriptionEvent.findUnique({
+      where: { dedupeKey: cycleDedupeKey },
+      include: { account: true, program: true },
+    });
+
+    if (duplicateEvent) {
+      return {
+        account: duplicateEvent.account,
+        program: duplicateEvent.program ?? program,
+        earnedReward: false,
+        duplicate: true,
+      };
+    }
+  }
 
   const existing = await db.subscriptionAccount.findFirst({
     where: {
       shop: input.shop,
-      ...lookup,
+      programId: program.id,
+      identityKey,
     },
   });
 
@@ -126,65 +270,160 @@ export async function recordOrderCycle(input: OrderCycleInput) {
     program.freeEveryCycles > 0 && paidCycles % program.freeEveryCycles === 0;
   const nextRewardCycle = earnedReward
     ? paidCycles + program.freeEveryCycles
-    : existing?.nextRewardCycle ?? program.freeEveryCycles;
+    : nextRewardCycleFor(paidCycles, program.freeEveryCycles);
 
-  return db.$transaction(async (tx) => {
-    const account = existing
-      ? await tx.subscriptionAccount.update({
-          where: { id: existing.id },
-          data: {
-            programId: program.id,
-            customerId: input.customerId ?? existing.customerId,
-            customerEmail: input.customerEmail ?? existing.customerEmail,
-            contractId: input.contractId ?? existing.contractId,
-            paidCycles,
-            nextRewardCycle,
-            lastOrderId: input.orderId ?? existing.lastOrderId,
-            status: "active",
-          },
-        })
-      : await tx.subscriptionAccount.create({
-          data: {
-            shop: input.shop,
-            programId: program.id,
-            customerId: input.customerId,
-            customerEmail: input.customerEmail,
-            contractId: input.contractId,
-            paidCycles,
-            nextRewardCycle,
-            lastOrderId: input.orderId,
-            status: "active",
-          },
-        });
+  try {
+    return await db.$transaction(async (tx) => {
+      const account = existing
+        ? await tx.subscriptionAccount.update({
+            where: { id: existing.id },
+            data: {
+              programId: program.id,
+              identityKey,
+              customerId: input.customerId ?? existing.customerId,
+              customerEmail: input.customerEmail ?? existing.customerEmail,
+              contractId: input.contractId ?? existing.contractId,
+              paidCycles,
+              nextRewardCycle,
+              lastOrderId: input.orderId ?? existing.lastOrderId,
+              status: "active",
+            },
+          })
+        : await tx.subscriptionAccount.create({
+            data: {
+              shop: input.shop,
+              programId: program.id,
+              identityKey,
+              customerId: input.customerId,
+              customerEmail: input.customerEmail,
+              contractId: input.contractId,
+              paidCycles,
+              nextRewardCycle,
+              lastOrderId: input.orderId,
+              status: "active",
+            },
+          });
 
-    await tx.subscriptionEvent.create({
-      data: {
-        shop: input.shop,
-        programId: program.id,
-        accountId: account.id,
-        type: "cycle_recorded",
-        orderId: input.orderId,
-        cycleNumber: paidCycles,
-        note: input.note,
-      },
-    });
-
-    if (earnedReward) {
       await tx.subscriptionEvent.create({
         data: {
           shop: input.shop,
           programId: program.id,
           accountId: account.id,
-          type: "reward_earned",
+          dedupeKey: cycleDedupeKey,
+          type: "cycle_recorded",
           orderId: input.orderId,
           cycleNumber: paidCycles,
-          note: `Free shipment earned after ${paidCycles} paid cycles.`,
+          note: input.note,
+          metadata: input.metadata,
         },
       });
+
+      if (earnedReward) {
+        const rewardDedupeKey = `reward:${input.shop}:${account.id}:${paidCycles}`;
+
+        await tx.subscriptionEvent.create({
+          data: {
+            shop: input.shop,
+            programId: program.id,
+            accountId: account.id,
+            dedupeKey: rewardDedupeKey,
+            type: "reward_earned",
+            orderId: input.orderId,
+            cycleNumber: paidCycles,
+            note: `Free shipment earned after ${paidCycles} paid cycles.`,
+          },
+        });
+
+        if (program.notifyRewards) {
+          await tx.subscriptionEvent.create({
+            data: {
+              shop: input.shop,
+              programId: program.id,
+              accountId: account.id,
+              dedupeKey: `notify:${rewardDedupeKey}`,
+              type: "staff_notification_queued",
+              orderId: input.orderId,
+              cycleNumber: paidCycles,
+              note: "Staff notification queued for this free-shipment milestone.",
+            },
+          });
+        }
+      }
+
+      return { account, program, earnedReward, duplicate: false };
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002" &&
+      cycleDedupeKey
+    ) {
+      const duplicateEvent = await db.subscriptionEvent.findUnique({
+        where: { dedupeKey: cycleDedupeKey },
+        include: { account: true, program: true },
+      });
+
+      if (duplicateEvent) {
+        return {
+          account: duplicateEvent.account,
+          program: duplicateEvent.program ?? program,
+          earnedReward: false,
+          duplicate: true,
+        };
+      }
     }
 
-    return { account, program, earnedReward };
+    throw error;
+  }
+}
+
+export async function markRewardFulfilled(input: {
+  shop: string;
+  programId: string;
+  rewardEventId?: string | null;
+  accountId?: string | null;
+  cycleNumber?: number | null;
+  orderId?: string | null;
+  note?: string | null;
+}) {
+  const rewardEvent = input.rewardEventId
+    ? await db.subscriptionEvent.findFirst({
+        where: {
+          id: input.rewardEventId,
+          shop: input.shop,
+          programId: input.programId,
+          type: "reward_earned",
+        },
+      })
+    : null;
+  const accountId = rewardEvent?.accountId ?? input.accountId ?? null;
+  const cycleNumber = rewardEvent?.cycleNumber ?? input.cycleNumber ?? null;
+
+  if (!accountId || cycleNumber === null) {
+    throw new Error("Reward fulfillment needs an account and cycle number.");
+  }
+
+  const dedupeKey = `fulfill:${input.shop}:${accountId}:${cycleNumber}`;
+  const existing = await db.subscriptionEvent.findUnique({
+    where: { dedupeKey },
   });
+
+  if (existing) return { event: existing, duplicate: true };
+
+  const event = await db.subscriptionEvent.create({
+    data: {
+      shop: input.shop,
+      programId: input.programId,
+      accountId,
+      dedupeKey,
+      type: "reward_fulfilled",
+      orderId: rewardEvent?.orderId ?? input.orderId,
+      cycleNumber,
+      note: input.note ?? "Reward marked fulfilled.",
+    },
+  });
+
+  return { event, duplicate: false };
 }
 
 export async function getDashboard(shop: string, programId?: string | null) {

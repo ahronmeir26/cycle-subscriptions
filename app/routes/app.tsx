@@ -35,6 +35,7 @@ export default function App() {
       <NavMenu>
         <a href={`/app${query}`}>Subscriptions</a>
         <a href={`/app/operations${query}`}>Operations</a>
+        <a href={`/app/settings${query}`}>Reward rule</a>
       </NavMenu>
       <Outlet />
     </AppProvider>

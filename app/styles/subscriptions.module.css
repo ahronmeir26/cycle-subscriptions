@@ -305,6 +305,19 @@
   color: #24333d;
 }
 
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #24333d;
+  font-weight: 500;
+}
+
+.checkboxRow input {
+  width: auto;
+  flex: 0 0 auto;
+}
+
 .accountList,
 .eventList {
   display: grid;

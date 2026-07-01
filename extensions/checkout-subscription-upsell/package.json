@@ -1,0 +1,15 @@
+{
+  "name": "checkout-subscription-upsell",
+  "private": true,
+  "version": "1.0.0",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@shopify/ui-extensions": "2025.10.x",
+    "@shopify/ui-extensions-react": "2025.10.x",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "typescript": "^5.9.3"
+  }
+}

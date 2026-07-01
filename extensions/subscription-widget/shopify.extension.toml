@@ -1,0 +1,9 @@
+# Storefront subscription widget (theme app extension)
+# Adds a product-page app block that surfaces the recurring plan and the
+# milestone reward (e.g. a free shipment every 12th paid cycle).
+api_version = "2025-10"
+
+[[extensions]]
+name = "Subscription widget"
+handle = "subscription-widget"
+type = "theme"

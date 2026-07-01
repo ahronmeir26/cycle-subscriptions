@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ButtonHTMLAttributes } from "react";
 import type {
   ActionFunctionArgs,
   HeadersFunction,
@@ -412,12 +412,12 @@ export default function Index() {
             </select>
           </label>
         </Form>
-        <s-button
-          variant="primary"
+        <ActionButton
+          primary
           onClick={() => setProgramModalMode("create")}
         >
           New program
-        </s-button>
+        </ActionButton>
       </div>
 
       <s-section>
@@ -447,9 +447,9 @@ export default function Index() {
             <Detail label="Products" value={productSummary(program.productGids)} />
           </div>
           <div className={styles.actionColumn}>
-            <s-button onClick={() => setProgramModalMode("edit")}>
+            <ActionButton onClick={() => setProgramModalMode("edit")}>
               Edit program
-            </s-button>
+            </ActionButton>
           </div>
         </div>
       </s-section>
@@ -471,13 +471,13 @@ export default function Index() {
           <Form method="post" className={styles.inlineForm}>
             <input type="hidden" name="intent" value="publish-selling-plan" />
             <input type="hidden" name="programId" value={program.id} />
-            <s-button
+            <ActionButton
               type="submit"
-              variant="primary"
-              {...(isSubmitting ? { loading: true } : {})}
+              primary
+              busy={isSubmitting}
             >
               {program.sellingPlanGroupId ? "Sync plan" : "Publish plan"}
-            </s-button>
+            </ActionButton>
           </Form>
         </div>
       </s-section>
@@ -566,9 +566,9 @@ export default function Index() {
             <input name="orderId" placeholder="manual-1001" />
           </label>
           <div className={styles.actionRow}>
-            <s-button type="submit" {...(isSubmitting ? { loading: true } : {})}>
+            <ActionButton type="submit" busy={isSubmitting}>
               Apply
-            </s-button>
+            </ActionButton>
           </div>
         </Form>
       </s-section>
@@ -594,9 +594,9 @@ export default function Index() {
             Auto-sync selling plan after program edits
           </label>
           <div className={styles.actionRow}>
-            <s-button type="submit" {...(isSubmitting ? { loading: true } : {})}>
+            <ActionButton type="submit" busy={isSubmitting}>
               Save settings
-            </s-button>
+            </ActionButton>
           </div>
         </Form>
       </s-section>
@@ -620,12 +620,12 @@ export default function Index() {
                   <input type="hidden" name="intent" value="fulfill-reward" />
                   <input type="hidden" name="programId" value={program.id} />
                   <input type="hidden" name="eventId" value={event.id} />
-                  <s-button
+                  <ActionButton
                     type="submit"
-                    {...(isSubmitting ? { loading: true } : {})}
+                    busy={isSubmitting}
                   >
                     Fulfill
-                  </s-button>
+                  </ActionButton>
                 </Form>
               </div>
             ))}
@@ -686,6 +686,37 @@ function readProgramConfig(formData: FormData) {
     }),
     productGids: normalizeProductGids(formData.get("productGids")),
   };
+}
+
+function ActionButton({
+  busy = false,
+  children,
+  className = "",
+  disabled,
+  primary = false,
+  type = "button",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  busy?: boolean;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      aria-busy={busy || undefined}
+      className={[
+        styles.button,
+        primary ? styles.primaryButton : "",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      disabled={disabled || busy}
+      type={type}
+      {...props}
+    >
+      {children}
+    </button>
+  );
 }
 
 function ProgramModal({
@@ -784,9 +815,9 @@ function ProgramModal({
             />
           </label>
           <div className={styles.actionRow}>
-            <s-button type="submit" {...(isSubmitting ? { loading: true } : {})}>
+            <ActionButton type="submit" busy={isSubmitting}>
               {isCreate ? "Create program" : "Save program"}
-            </s-button>
+            </ActionButton>
           </div>
         </Form>
       </div>

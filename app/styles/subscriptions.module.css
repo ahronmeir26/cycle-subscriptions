@@ -235,6 +235,54 @@
   resize: vertical;
 }
 
+.fieldError {
+  margin: 0.35rem 0 0;
+  color: #8e1f0b;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.button {
+  display: inline-flex;
+  min-height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #9aa8b5;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #152733;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.1;
+  padding: 0.55rem 0.85rem;
+  text-align: center;
+}
+
+.button:hover:not(:disabled) {
+  background: #f5f7f8;
+}
+
+.button:focus-visible {
+  outline: 2px solid #005bd3;
+  outline-offset: 2px;
+}
+
+.button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.primaryButton {
+  border-color: #004c3f;
+  background: #006c67;
+  color: #ffffff;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: #00564f;
+}
+
 .fullWidth {
   grid-column: 1 / -1;
 }
@@ -360,6 +408,10 @@
   .inlineForm,
   .actionRow {
     justify-content: stretch;
+  }
+
+  .button {
+    width: 100%;
   }
 
   .programSwitcher {

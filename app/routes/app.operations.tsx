@@ -9,7 +9,11 @@ import styles from "../styles/operations.module.css";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  const { program } = await getDashboard(session.shop);
+  const url = new URL(request.url);
+  const { program } = await getDashboard(
+    session.shop,
+    url.searchParams.get("programId"),
+  );
   const [rewardEvents, cycleEvents] = await Promise.all([
     db.subscriptionEvent.findMany({
       where: { shop: session.shop, programId: program.id, type: "reward_earned" },

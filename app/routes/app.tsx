@@ -1,5 +1,10 @@
-import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
+import type {
+  HeadersFunction,
+  LoaderFunctionArgs,
+  MetaFunction,
+} from "react-router";
 import { Outlet, useLoaderData, useRouteError } from "react-router";
+import { NavMenu } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
@@ -7,22 +12,30 @@ import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
+  const url = new URL(request.url);
+  const programId = url.searchParams.get("programId");
 
   // eslint-disable-next-line no-undef
   return {
     apiKey: process.env.SHOPIFY_CLIENT_ID || process.env.SHOPIFY_API_KEY || "",
+    programId,
   };
 };
 
+export const meta: MetaFunction<typeof loader> = ({ data }) => [
+  { name: "shopify-api-key", content: data?.apiKey ?? "" },
+];
+
 export default function App() {
-  const { apiKey } = useLoaderData<typeof loader>();
+  const { apiKey, programId } = useLoaderData<typeof loader>();
+  const query = programId ? `?programId=${encodeURIComponent(programId)}` : "";
 
   return (
     <AppProvider embedded apiKey={apiKey}>
-      <s-app-nav>
-        <s-link href="/app">Subscriptions</s-link>
-        <s-link href="/app/operations">Operations</s-link>
-      </s-app-nav>
+      <NavMenu>
+        <a href={`/app${query}`}>Subscriptions</a>
+        <a href={`/app/operations${query}`}>Operations</a>
+      </NavMenu>
       <Outlet />
     </AppProvider>
   );

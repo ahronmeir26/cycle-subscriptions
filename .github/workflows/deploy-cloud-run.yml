@@ -1,0 +1,41 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-cloud-run-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6.0.3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/96299311297/locations/global/workloadIdentityPools/github-pool/providers/cycle-subscriptions-provider
+          service_account: glass-pane-github-deployer@ai-stone.iam.gserviceaccount.com
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ai-stone
+
+      - name: Submit Cloud Build deploy
+        run: |
+          gcloud builds submit \
+            --config cloudbuild.yaml \
+            --project ai-stone \
+            --service-account projects/ai-stone/serviceAccounts/glass-pane-github-deployer@ai-stone.iam.gserviceaccount.com \
+            --quiet

@@ -6,6 +6,8 @@ jobs:
   CI:
     name: Node ${{ matrix.node }} and ${{ matrix.manager }}
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
     strategy:
       matrix:
         node: [20.19.0, 22, 24]

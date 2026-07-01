@@ -14,6 +14,7 @@ import {
   parsePositiveInteger,
   updateRewardSettings,
 } from "../models/subscriptions.server";
+import { syncSellingPlanGroup } from "../models/selling-plans.server";
 import { authenticate } from "../shopify.server";
 import styles from "../styles/subscriptions.module.css";
 
@@ -36,7 +37,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export const action = async ({
   request,
 }: ActionFunctionArgs): Promise<ActionResult> => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const formData = await request.formData();
   const programId =
@@ -44,7 +45,7 @@ export const action = async ({
     url.searchParams.get("programId");
   const program = await getSelectedProgram(session.shop, programId);
 
-  await updateRewardSettings(session.shop, program.id, {
+  const updated = await updateRewardSettings(session.shop, program.id, {
     name: String(formData.get("name") ?? "").trim(),
     shirtQuantity: parsePositiveInteger(formData.get("shirtQuantity"), 2, {
       min: 1,
@@ -61,6 +62,22 @@ export const action = async ({
     notifyRewards: parseBoolean(formData.get("notifyRewards")),
     autoSyncSellingPlan: parseBoolean(formData.get("autoSyncSellingPlan")),
   });
+
+  if (updated.autoSyncSellingPlan && updated.sellingPlanGroupId) {
+    try {
+      await syncSellingPlanGroup(admin, updated);
+
+      return {
+        status: "success",
+        message: "Reward rule saved and selling plan synced.",
+      };
+    } catch (error) {
+      return {
+        status: "error",
+        message: error instanceof Error ? error.message : "Selling plan sync failed.",
+      };
+    }
+  }
 
   return { status: "success", message: "Reward rule saved." };
 };

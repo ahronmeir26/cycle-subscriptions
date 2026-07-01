@@ -1,18 +1,16 @@
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Form, useActionData, useLoaderData } from "react-router";
-
 import { login } from "../../shopify.server";
 import styles from "../../styles/subscriptions.module.css";
 import { loginErrorMessage } from "./error.server";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({ request }) => {
   const errors = loginErrorMessage(await login(request));
 
   return { errors };
 };
 
-export const action = async ({ request }: ActionFunctionArgs) => {
+export const action = async ({ request }) => {
   const errors = loginErrorMessage(await login(request));
 
   return {
@@ -21,8 +19,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Auth() {
-  const loaderData = useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
+  const loaderData = useLoaderData();
+  const actionData = useActionData();
   const { errors } = actionData || loaderData;
 
   return (

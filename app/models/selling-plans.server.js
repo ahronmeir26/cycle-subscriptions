@@ -1,49 +1,13 @@
-import type { SubscriptionProgram } from "@prisma/client";
-
 import db from "../db.server";
 
-type AdminGraphqlClient = {
-  graphql: (
-    query: string,
-    options?: { variables?: Record<string, unknown> },
-  ) => Promise<Response>;
-};
-
-type UserError = { field?: string[]; message: string };
-
-type SellingPlanGroupMutationPayload = {
-  sellingPlanGroup?: {
-    id: string;
-    sellingPlans: {
-      edges: Array<{ node: { id: string } }>;
-    };
-  } | null;
-  userErrors: UserError[];
-};
-
-type SellingPlanGroupQueryResponse = {
-  data?: {
-    sellingPlanGroup?: {
-      products: { nodes: Array<{ id: string }> };
-      sellingPlans: { edges: Array<{ node: { id: string } }> };
-    } | null;
-  };
-};
-
-export function productIdsForProgram(program: Pick<SubscriptionProgram, "productGids">) {
+export function productIdsForProgram(program) {
   return program.productGids
     .split(",")
     .map((id) => id.trim())
     .filter(Boolean);
 }
 
-export function sellingPlanInputForProgram(
-  program: Pick<
-    SubscriptionProgram,
-    "id" | "name" | "shirtQuantity" | "intervalMonths"
-  >,
-  sellingPlanId?: string | null,
-) {
+export function sellingPlanInputForProgram(program, sellingPlanId) {
   return {
     ...(sellingPlanId ? { id: sellingPlanId } : {}),
     name: `${program.shirtQuantity} shirts every ${program.intervalMonths} months`,
@@ -67,12 +31,7 @@ export function sellingPlanInputForProgram(
   };
 }
 
-export function sellingPlanGroupInputForProgram(
-  program: Pick<
-    SubscriptionProgram,
-    "id" | "name" | "shirtQuantity" | "intervalMonths" | "sellingPlanId"
-  >,
-) {
+export function sellingPlanGroupInputForProgram(program) {
   const planInput = sellingPlanInputForProgram(program, program.sellingPlanId);
 
   return {
@@ -85,14 +44,13 @@ export function sellingPlanGroupInputForProgram(
   };
 }
 
-export async function syncSellingPlanGroup(
-  admin: AdminGraphqlClient,
-  program: SubscriptionProgram,
-) {
+export async function syncSellingPlanGroup(admin, program) {
   const productIds = productIdsForProgram(program);
 
   if (productIds.length === 0) {
-    throw new Error("Add at least one Shopify product ID before syncing the selling plan.");
+    throw new Error(
+      "Add at least one Shopify product ID before syncing the selling plan.",
+    );
   }
 
   if (!program.sellingPlanGroupId) {
@@ -101,9 +59,7 @@ export async function syncSellingPlanGroup(
 
   const current = await getSellingPlanGroup(admin, program.sellingPlanGroupId);
   const sellingPlanId =
-    program.sellingPlanId ??
-    current?.sellingPlans.edges[0]?.node.id ??
-    null;
+    program.sellingPlanId ?? current?.sellingPlans.edges[0]?.node.id ?? null;
   const updatePayload = await updateSellingPlanGroup(admin, {
     ...program,
     sellingPlanId,
@@ -115,7 +71,6 @@ export async function syncSellingPlanGroup(
     current?.products.nodes.map((node) => node.id) ?? [],
     productIds,
   );
-
   const updatedSellingPlanId =
     updatePayload.sellingPlanGroup?.sellingPlans.edges[0]?.node.id ??
     sellingPlanId;
@@ -129,17 +84,13 @@ export async function syncSellingPlanGroup(
   });
 
   return {
-    action: "synced" as const,
+    action: "synced",
     sellingPlanGroupId: program.sellingPlanGroupId,
     sellingPlanId: updatedSellingPlanId,
   };
 }
 
-async function createSellingPlanGroup(
-  admin: AdminGraphqlClient,
-  program: SubscriptionProgram,
-  productIds: string[],
-) {
+async function createSellingPlanGroup(admin, program, productIds) {
   const response = await admin.graphql(
     `#graphql
       mutation CreateSubscriptionSellingPlan(
@@ -173,31 +124,27 @@ async function createSellingPlanGroup(
       },
     },
   );
-  const payload = await mutationPayload(
-    response,
-    "sellingPlanGroupCreate",
-  );
+  const payload = await mutationPayload(response, "sellingPlanGroupCreate");
 
   await db.subscriptionProgram.update({
     where: { id: program.id },
     data: {
       status: "published",
       sellingPlanGroupId: payload.sellingPlanGroup.id,
-      sellingPlanId: payload.sellingPlanGroup.sellingPlans.edges[0]?.node.id ?? null,
+      sellingPlanId:
+        payload.sellingPlanGroup.sellingPlans.edges[0]?.node.id ?? null,
     },
   });
 
   return {
-    action: "created" as const,
+    action: "created",
     sellingPlanGroupId: payload.sellingPlanGroup.id,
-    sellingPlanId: payload.sellingPlanGroup.sellingPlans.edges[0]?.node.id ?? null,
+    sellingPlanId:
+      payload.sellingPlanGroup.sellingPlans.edges[0]?.node.id ?? null,
   };
 }
 
-async function updateSellingPlanGroup(
-  admin: AdminGraphqlClient,
-  program: SubscriptionProgram,
-) {
+async function updateSellingPlanGroup(admin, program) {
   const response = await admin.graphql(
     `#graphql
       mutation UpdateSubscriptionSellingPlan(
@@ -233,10 +180,7 @@ async function updateSellingPlanGroup(
   return mutationPayload(response, "sellingPlanGroupUpdate");
 }
 
-async function getSellingPlanGroup(
-  admin: AdminGraphqlClient,
-  sellingPlanGroupId: string,
-) {
+async function getSellingPlanGroup(admin, sellingPlanGroupId) {
   const response = await admin.graphql(
     `#graphql
       query SubscriptionSellingPlanGroup($id: ID!) {
@@ -258,16 +202,16 @@ async function getSellingPlanGroup(
     `,
     { variables: { id: sellingPlanGroupId } },
   );
-  const json = (await response.json()) as SellingPlanGroupQueryResponse;
+  const json = await response.json();
 
   return json.data?.sellingPlanGroup ?? null;
 }
 
 async function syncSellingPlanProducts(
-  admin: AdminGraphqlClient,
-  sellingPlanGroupId: string,
-  currentProductIds: string[],
-  desiredProductIds: string[],
+  admin,
+  sellingPlanGroupId,
+  currentProductIds,
+  desiredProductIds,
 ) {
   const current = new Set(currentProductIds);
   const desired = new Set(desiredProductIds);
@@ -275,7 +219,12 @@ async function syncSellingPlanProducts(
   const toRemove = currentProductIds.filter((id) => !desired.has(id));
 
   if (toAdd.length > 0) {
-    await productMutation(admin, "sellingPlanGroupAddProducts", sellingPlanGroupId, toAdd);
+    await productMutation(
+      admin,
+      "sellingPlanGroupAddProducts",
+      sellingPlanGroupId,
+      toAdd,
+    );
   }
 
   if (toRemove.length > 0) {
@@ -289,10 +238,10 @@ async function syncSellingPlanProducts(
 }
 
 async function productMutation(
-  admin: AdminGraphqlClient,
-  mutationName: "sellingPlanGroupAddProducts" | "sellingPlanGroupRemoveProducts",
-  sellingPlanGroupId: string,
-  productIds: string[],
+  admin,
+  mutationName,
+  sellingPlanGroupId,
+  productIds,
 ) {
   const response = await admin.graphql(
     `#graphql
@@ -307,9 +256,7 @@ async function productMutation(
     `,
     { variables: { id: sellingPlanGroupId, productIds } },
   );
-  const json = (await response.json()) as {
-    data?: Record<string, { userErrors?: UserError[] }>;
-  };
+  const json = await response.json();
   const errors = json.data?.[mutationName]?.userErrors ?? [];
 
   if (errors.length > 0) {
@@ -317,10 +264,8 @@ async function productMutation(
   }
 }
 
-async function mutationPayload(response: Response, name: string) {
-  const json = (await response.json()) as {
-    data?: Record<string, SellingPlanGroupMutationPayload>;
-  };
+async function mutationPayload(response, name) {
+  const json = await response.json();
   const payload = json.data?.[name];
   const errors = payload?.userErrors ?? [];
 

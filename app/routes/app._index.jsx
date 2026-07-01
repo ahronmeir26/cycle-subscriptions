@@ -1,9 +1,4 @@
-import { useEffect, useState, type ButtonHTMLAttributes } from "react";
-import type {
-  ActionFunctionArgs,
-  HeadersFunction,
-  LoaderFunctionArgs,
-} from "react-router";
+import { useEffect, useState } from "react";
 import {
   Form,
   redirect,
@@ -14,7 +9,6 @@ import {
 } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-
 import db from "../db.server";
 import {
   createProgram,
@@ -29,17 +23,13 @@ import { syncSellingPlanGroup } from "../models/selling-plans.server";
 import { authenticate } from "../shopify.server";
 import styles from "../styles/subscriptions.module.css";
 
-type ActionResult = {
-  status: "success" | "error";
-  message: string;
-};
-
-type ProgramModalMode = "create" | "edit" | null;
-
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   const url = new URL(request.url);
-  const dashboard = await getDashboard(session.shop, url.searchParams.get("programId"));
+  const dashboard = await getDashboard(
+    session.shop,
+    url.searchParams.get("programId"),
+  );
   const shopResponse = await admin.graphql(`#graphql
     query SubscriptionOpsShop {
       shop {
@@ -56,25 +46,32 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
-export const action = async ({
-  request,
-}: ActionFunctionArgs): Promise<ActionResult | Response> => {
+export const action = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
   const programId =
-    String(formData.get("programId") ?? "") || url.searchParams.get("programId");
+    String(formData.get("programId") ?? "") ||
+    url.searchParams.get("programId");
   const dashboard = await getDashboard(session.shop, programId);
   const program = dashboard.program;
 
   if (intent === "create-program") {
-    const created = await createProgram(session.shop, readProgramConfig(formData));
+    const created = await createProgram(
+      session.shop,
+      readProgramConfig(formData),
+    );
+
     return redirect(`/app?programId=${created.id}`);
   }
 
   if (intent === "save-program") {
-    const saved = await saveProgram(session.shop, program.id, readProgramConfig(formData));
+    const saved = await saveProgram(
+      session.shop,
+      program.id,
+      readProgramConfig(formData),
+    );
 
     if (saved.autoSyncSellingPlan && saved.sellingPlanGroupId) {
       await syncSellingPlanGroup(admin, saved);
@@ -92,6 +89,7 @@ export const action = async ({
   if (intent === "publish-selling-plan") {
     try {
       const result = await syncSellingPlanGroup(admin, program);
+
       return {
         status: "success",
         message:
@@ -102,7 +100,8 @@ export const action = async ({
     } catch (error) {
       return {
         status: "error",
-        message: error instanceof Error ? error.message : "Selling plan sync failed.",
+        message:
+          error instanceof Error ? error.message : "Selling plan sync failed.",
       };
     }
   }
@@ -261,13 +260,12 @@ export default function Index() {
     pendingRewardEvents,
     recentEvents,
     subscriberAccounts,
-  } = useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
+  } = useLoaderData();
+  const actionData = useActionData();
   const navigation = useNavigation();
   const submit = useSubmit();
   const shopify = useAppBridge();
-  const [programModalMode, setProgramModalMode] =
-    useState<ProgramModalMode>(null);
+  const [programModalMode, setProgramModalMode] = useState(null);
   const isSubmitting = navigation.state === "submitting";
   const productGids = program.productGids.split(",").filter(Boolean).join("\n");
   const cadenceLabel = `${program.shirtQuantity} shirts every ${program.intervalMonths} months`;
@@ -293,6 +291,7 @@ export default function Index() {
                 if (event.currentTarget.value === "new-program") {
                   event.currentTarget.value = program.id;
                   setProgramModalMode("create");
+
                   return;
                 }
 
@@ -308,10 +307,7 @@ export default function Index() {
             </select>
           </label>
         </Form>
-        <ActionButton
-          primary
-          onClick={() => setProgramModalMode("create")}
-        >
+        <ActionButton primary onClick={() => setProgramModalMode("create")}>
           New program
         </ActionButton>
       </div>
@@ -340,7 +336,10 @@ export default function Index() {
               label="Reward"
               value={`Free shipment every ${program.freeEveryCycles} paid cycles`}
             />
-            <Detail label="Products" value={productSummary(program.productGids)} />
+            <Detail
+              label="Products"
+              value={productSummary(program.productGids)}
+            />
           </div>
           <div className={styles.actionColumn}>
             <ActionButton onClick={() => setProgramModalMode("edit")}>
@@ -367,11 +366,7 @@ export default function Index() {
           <Form method="post" className={styles.inlineForm}>
             <input type="hidden" name="intent" value="publish-selling-plan" />
             <input type="hidden" name="programId" value={program.id} />
-            <ActionButton
-              type="submit"
-              primary
-              busy={isSubmitting}
-            >
+            <ActionButton type="submit" primary busy={isSubmitting}>
               {program.sellingPlanGroupId ? "Sync plan" : "Publish plan"}
             </ActionButton>
           </Form>
@@ -388,7 +383,9 @@ export default function Index() {
 
       <s-section heading="Subscribers">
         {subscriberAccounts.length === 0 ? (
-          <s-paragraph>No subscribers have been recorded for this program.</s-paragraph>
+          <s-paragraph>
+            No subscribers have been recorded for this program.
+          </s-paragraph>
         ) : (
           <div className={styles.tableWrap}>
             <table className={styles.table}>
@@ -409,7 +406,11 @@ export default function Index() {
                           account.customerId ??
                           "Subscriber"}
                       </strong>
-                      <span>{account.contractId ?? account.lastOrderId ?? "No reference"}</span>
+                      <span>
+                        {account.contractId ??
+                          account.lastOrderId ??
+                          "No reference"}
+                      </span>
                     </td>
                     <td>{account.paidCycles}</td>
                     <td>{account.nextRewardCycle}</td>
@@ -516,10 +517,7 @@ export default function Index() {
                   <input type="hidden" name="intent" value="fulfill-reward" />
                   <input type="hidden" name="programId" value={program.id} />
                   <input type="hidden" name="eventId" value={event.id} />
-                  <ActionButton
-                    type="submit"
-                    busy={isSubmitting}
-                  >
+                  <ActionButton type="submit" busy={isSubmitting}>
                     Fulfill
                   </ActionButton>
                 </Form>
@@ -536,7 +534,9 @@ export default function Index() {
           <div className={styles.eventList}>
             {recentEvents.map((event) => (
               <div className={styles.eventItem} key={event.id}>
-                <span className={styles.eventType}>{formatEventType(event.type)}</span>
+                <span className={styles.eventType}>
+                  {formatEventType(event.type)}
+                </span>
                 <strong>
                   {event.account?.customerEmail ??
                     event.account?.customerId ??
@@ -565,7 +565,7 @@ export default function Index() {
   );
 }
 
-function readProgramConfig(formData: FormData) {
+function readProgramConfig(formData) {
   return {
     name: String(formData.get("name") ?? "Shirt replenishment"),
     shirtQuantity: parsePositiveInteger(formData.get("shirtQuantity"), 2, {
@@ -592,18 +592,11 @@ function ActionButton({
   primary = false,
   type = "button",
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
-  busy?: boolean;
-  primary?: boolean;
 }) {
   return (
     <button
       aria-busy={busy || undefined}
-      className={[
-        styles.button,
-        primary ? styles.primaryButton : "",
-        className,
-      ]
+      className={[styles.button, primary ? styles.primaryButton : "", className]
         .filter(Boolean)
         .join(" ")}
       disabled={disabled || busy}
@@ -615,19 +608,7 @@ function ActionButton({
   );
 }
 
-function ProgramModal({
-  isSubmitting,
-  mode,
-  productGids,
-  program,
-  onClose,
-}: {
-  isSubmitting: boolean;
-  mode: Exclude<ProgramModalMode, null>;
-  productGids: string;
-  program: Awaited<ReturnType<typeof getDashboard>>["program"];
-  onClose: () => void;
-}) {
+function ProgramModal({ isSubmitting, mode, productGids, program, onClose }) {
   const isCreate = mode === "create";
 
   return (
@@ -721,7 +702,7 @@ function ProgramModal({
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+function Detail({ label, value }) {
   return (
     <div>
       <dt>{label}</dt>
@@ -730,7 +711,7 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({ label, value }) {
   return (
     <div className={styles.metric}>
       <span>{label}</span>
@@ -739,7 +720,7 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function productSummary(productGids: string) {
+function productSummary(productGids) {
   const ids = productGids
     .split(",")
     .map((item) => item.trim())
@@ -747,13 +728,14 @@ function productSummary(productGids: string) {
 
   if (ids.length === 0) return "No products selected";
   if (ids.length === 1) return ids[0];
+
   return `${ids.length} products selected`;
 }
 
-function formatEventType(type: string) {
+function formatEventType(type) {
   return type.replace(/_/g, " ");
 }
 
-export const headers: HeadersFunction = (headersArgs) => {
+export const headers = (headersArgs) => {
   return boundary.headers(headersArgs);
 };

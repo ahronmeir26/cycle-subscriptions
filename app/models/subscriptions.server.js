@@ -1,35 +1,7 @@
 import { Prisma } from "@prisma/client";
-
 import db from "../db.server";
 
-export type SubscriptionProgramConfig = {
-  name: string;
-  shirtQuantity: number;
-  intervalMonths: number;
-  freeEveryCycles: number;
-  productGids: string;
-};
-
-export type OrderCycleInput = {
-  shop: string;
-  programId?: string | null;
-  orderId?: string | null;
-  customerId?: string | null;
-  customerEmail?: string | null;
-  contractId?: string | null;
-  sourceEventId?: string | null;
-  metadata?: Prisma.InputJsonValue;
-  note?: string | null;
-};
-
-export type OrderCycleResult = {
-  account: Awaited<ReturnType<typeof db.subscriptionAccount.findFirst>>;
-  program: Awaited<ReturnType<typeof getSelectedProgram>>;
-  earnedReward: boolean;
-  duplicate: boolean;
-};
-
-export function normalizeProductGids(value: FormDataEntryValue | null) {
+export function normalizeProductGids(value) {
   return String(value ?? "")
     .split(/[\s,]+/)
     .map((item) => item.trim())
@@ -40,17 +12,15 @@ export function normalizeProductGids(value: FormDataEntryValue | null) {
     .join(",");
 }
 
-export function parsePositiveInteger(
-  value: FormDataEntryValue | null,
-  fallback: number,
-  bounds: { min: number; max: number },
-) {
+export function parsePositiveInteger(value, fallback, bounds) {
   const parsed = Number.parseInt(String(value ?? ""), 10);
+
   if (!Number.isFinite(parsed)) return fallback;
+
   return Math.min(Math.max(parsed, bounds.min), bounds.max);
 }
 
-export async function getOrCreateProgram(shop: string) {
+export async function getOrCreateProgram(shop) {
   const existing = await db.subscriptionProgram.findFirst({
     where: { shop },
     orderBy: { createdAt: "asc" },
@@ -70,7 +40,7 @@ export async function getOrCreateProgram(shop: string) {
   });
 }
 
-export async function getSelectedProgram(shop: string, programId?: string | null) {
+export async function getSelectedProgram(shop, programId) {
   if (programId) {
     const selected = await db.subscriptionProgram.findFirst({
       where: { id: programId, shop },
@@ -82,10 +52,7 @@ export async function getSelectedProgram(shop: string, programId?: string | null
   return getOrCreateProgram(shop);
 }
 
-export async function createProgram(
-  shop: string,
-  config: SubscriptionProgramConfig,
-) {
+export async function createProgram(shop, config) {
   return db.subscriptionProgram.create({
     data: {
       shop,
@@ -99,11 +66,7 @@ export async function createProgram(
   });
 }
 
-export async function saveProgram(
-  shop: string,
-  id: string,
-  config: SubscriptionProgramConfig,
-) {
+export async function saveProgram(shop, id, config) {
   return db.subscriptionProgram.update({
     where: { id, shop },
     data: {
@@ -117,20 +80,7 @@ export async function saveProgram(
   });
 }
 
-export type RewardSettingsInput = {
-  name: string;
-  shirtQuantity: number;
-  intervalMonths: number;
-  freeEveryCycles: number;
-  notifyRewards: boolean;
-  autoSyncSellingPlan: boolean;
-};
-
-export async function updateRewardSettings(
-  shop: string,
-  id: string,
-  settings: RewardSettingsInput,
-) {
+export async function updateRewardSettings(shop, id, settings) {
   return db.subscriptionProgram.update({
     where: { id, shop },
     data: {
@@ -144,36 +94,32 @@ export async function updateRewardSettings(
   });
 }
 
-export function parseBoolean(value: FormDataEntryValue | null) {
+export function parseBoolean(value) {
   const normalized = String(value ?? "").toLowerCase();
+
   return normalized === "true" || normalized === "on" || normalized === "1";
 }
 
-export function buildAccountIdentityKey(input: {
-  contractId?: string | null;
-  customerId?: string | null;
-  customerEmail?: string | null;
-  orderId?: string | null;
-}) {
+export function buildAccountIdentityKey(input) {
   if (input.contractId) return `contract:${input.contractId}`;
   if (input.customerId) return `customer:${input.customerId}`;
   if (input.customerEmail) return `email:${input.customerEmail.toLowerCase()}`;
   if (input.orderId) return `order:${input.orderId}`;
+
   return "unknown";
 }
 
-export function buildCycleDedupeKey(input: {
-  shop: string;
-  sourceEventId?: string | null;
-  orderId?: string | null;
-}) {
-  if (input.sourceEventId) return `webhook:${input.shop}:${input.sourceEventId}`;
+export function buildCycleDedupeKey(input) {
+  if (input.sourceEventId)
+    return `webhook:${input.shop}:${input.sourceEventId}`;
   if (input.orderId) return `order:${input.shop}:${input.orderId}`;
+
   return null;
 }
 
-export function nextRewardCycleFor(paidCycles: number, freeEveryCycles: number) {
+export function nextRewardCycleFor(paidCycles, freeEveryCycles) {
   if (freeEveryCycles <= 0) return 0;
+
   return (Math.floor(paidCycles / freeEveryCycles) + 1) * freeEveryCycles;
 }
 
@@ -182,20 +128,19 @@ export function nextRewardCycleFor(paidCycles: number, freeEveryCycles: number) 
  * extension. Matches the customer by GID, numeric id, or email so it works
  * regardless of which identifier the storefront/session token provides.
  */
-export async function getSubscriberStatus(
-  shop: string,
-  lookup: { customerId?: string | null; customerEmail?: string | null },
-) {
+export async function getSubscriberStatus(shop, lookup) {
   const program = await getOrCreateProgram(shop);
+  const orConditions = [];
 
-  const orConditions: Array<Record<string, string>> = [];
   if (lookup.customerId) {
     orConditions.push({ customerId: lookup.customerId });
     const numeric = lookup.customerId.split("/").pop();
+
     if (numeric && numeric !== lookup.customerId) {
       orConditions.push({ customerId: numeric });
     }
   }
+
   if (lookup.customerEmail) {
     orConditions.push({ customerEmail: lookup.customerEmail });
   }
@@ -206,16 +151,18 @@ export async function getSubscriberStatus(
         orderBy: { updatedAt: "desc" },
       })
     : null;
-
   const paidCycles = account?.paidCycles ?? 0;
   const freeEveryCycles = program.freeEveryCycles;
   const cyclesIntoReward =
     freeEveryCycles > 0 ? paidCycles % freeEveryCycles : 0;
   const cyclesUntilReward =
-    freeEveryCycles > 0 ? (freeEveryCycles - cyclesIntoReward) % freeEveryCycles : 0;
+    freeEveryCycles > 0
+      ? (freeEveryCycles - cyclesIntoReward) % freeEveryCycles
+      : 0;
   const nextRewardCycle =
     freeEveryCycles > 0
-      ? paidCycles + (cyclesUntilReward === 0 ? freeEveryCycles : cyclesUntilReward)
+      ? paidCycles +
+        (cyclesUntilReward === 0 ? freeEveryCycles : cyclesUntilReward)
       : null;
 
   return {
@@ -232,11 +179,12 @@ export async function getSubscriberStatus(
     freeEveryCycles,
     cyclesUntilReward,
     nextRewardCycle,
-    rewardReady: freeEveryCycles > 0 && paidCycles > 0 && cyclesIntoReward === 0,
+    rewardReady:
+      freeEveryCycles > 0 && paidCycles > 0 && cyclesIntoReward === 0,
   };
 }
 
-export async function recordOrderCycle(input: OrderCycleInput) {
+export async function recordOrderCycle(input) {
   const program = await getSelectedProgram(input.shop, input.programId);
   const identityKey = buildAccountIdentityKey(input);
   const cycleDedupeKey = buildCycleDedupeKey(input);
@@ -264,7 +212,6 @@ export async function recordOrderCycle(input: OrderCycleInput) {
       identityKey,
     },
   });
-
   const paidCycles = (existing?.paidCycles ?? 0) + 1;
   const earnedReward =
     program.freeEveryCycles > 0 && paidCycles % program.freeEveryCycles === 0;
@@ -377,15 +324,7 @@ export async function recordOrderCycle(input: OrderCycleInput) {
   }
 }
 
-export async function markRewardFulfilled(input: {
-  shop: string;
-  programId: string;
-  rewardEventId?: string | null;
-  accountId?: string | null;
-  cycleNumber?: number | null;
-  orderId?: string | null;
-  note?: string | null;
-}) {
+export async function markRewardFulfilled(input) {
   const rewardEvent = input.rewardEventId
     ? await db.subscriptionEvent.findFirst({
         where: {
@@ -409,7 +348,6 @@ export async function markRewardFulfilled(input: {
   });
 
   if (existing) return { event: existing, duplicate: true };
-
   const event = await db.subscriptionEvent.create({
     data: {
       shop: input.shop,
@@ -426,7 +364,7 @@ export async function markRewardFulfilled(input: {
   return { event, duplicate: false };
 }
 
-export async function getDashboard(shop: string, programId?: string | null) {
+export async function getDashboard(shop, programId) {
   const program = await getSelectedProgram(shop, programId);
   const [
     programs,
@@ -437,41 +375,40 @@ export async function getDashboard(shop: string, programId?: string | null) {
     topAccounts,
     subscriberAccounts,
   ] = await Promise.all([
-      db.subscriptionProgram.findMany({
-        where: { shop },
-        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
-      }),
-      db.subscriptionAccount.count({
-        where: { shop, programId: program.id, status: "active" },
-      }),
-      db.subscriptionEvent.findMany({
-        where: { shop, programId: program.id, type: "reward_earned" },
-        orderBy: { createdAt: "desc" },
-        take: 25,
-        include: { account: true },
-      }),
-      db.subscriptionEvent.findMany({
-        where: { shop, programId: program.id, type: "reward_fulfilled" },
-        select: { accountId: true, cycleNumber: true },
-      }),
-      db.subscriptionEvent.findMany({
-        where: { shop, programId: program.id },
-        orderBy: { createdAt: "desc" },
-        take: 12,
-        include: { account: true },
-      }),
-      db.subscriptionAccount.findMany({
-        where: { shop, programId: program.id },
-        orderBy: [{ paidCycles: "desc" }, { updatedAt: "desc" }],
-        take: 5,
-      }),
-      db.subscriptionAccount.findMany({
-        where: { shop, programId: program.id },
-        orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
-        take: 25,
-      }),
-    ]);
-
+    db.subscriptionProgram.findMany({
+      where: { shop },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    }),
+    db.subscriptionAccount.count({
+      where: { shop, programId: program.id, status: "active" },
+    }),
+    db.subscriptionEvent.findMany({
+      where: { shop, programId: program.id, type: "reward_earned" },
+      orderBy: { createdAt: "desc" },
+      take: 25,
+      include: { account: true },
+    }),
+    db.subscriptionEvent.findMany({
+      where: { shop, programId: program.id, type: "reward_fulfilled" },
+      select: { accountId: true, cycleNumber: true },
+    }),
+    db.subscriptionEvent.findMany({
+      where: { shop, programId: program.id },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+      include: { account: true },
+    }),
+    db.subscriptionAccount.findMany({
+      where: { shop, programId: program.id },
+      orderBy: [{ paidCycles: "desc" }, { updatedAt: "desc" }],
+      take: 5,
+    }),
+    db.subscriptionAccount.findMany({
+      where: { shop, programId: program.id },
+      orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+      take: 25,
+    }),
+  ]);
   const fulfilledKeys = new Set(
     fulfilledRewardEvents.map(
       (event) => `${event.accountId ?? ""}:${event.cycleNumber ?? ""}`,

@@ -1,16 +1,10 @@
-import type {
-  HeadersFunction,
-  LoaderFunctionArgs,
-  MetaFunction,
-} from "react-router";
 import { Outlet, useLoaderData, useRouteError } from "react-router";
 import { NavMenu } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
-
 import { authenticate } from "../shopify.server";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({ request }) => {
   await authenticate.admin(request);
   const url = new URL(request.url);
   const programId = url.searchParams.get("programId");
@@ -22,12 +16,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
-export const meta: MetaFunction<typeof loader> = ({ data }) => [
+export const meta = ({ data }) => [
   { name: "shopify-api-key", content: data?.apiKey ?? "" },
 ];
 
 export default function App() {
-  const { apiKey, programId } = useLoaderData<typeof loader>();
+  const { apiKey, programId } = useLoaderData();
   const query = programId ? `?programId=${encodeURIComponent(programId)}` : "";
 
   return (
@@ -47,6 +41,6 @@ export function ErrorBoundary() {
   return boundary.error(useRouteError());
 }
 
-export const headers: HeadersFunction = (headersArgs) => {
+export const headers = (headersArgs) => {
   return boundary.headers(headersArgs);
 };

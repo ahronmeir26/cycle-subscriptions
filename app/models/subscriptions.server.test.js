@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-
 import {
   buildAccountIdentityKey,
   buildCycleDedupeKey,
@@ -17,7 +16,6 @@ describe("subscription helpers", () => {
       }),
     ).toBe("contract:gid://shopify/SubscriptionContract/1");
   });
-
   it("falls back to customer and normalized email identities", () => {
     expect(
       buildAccountIdentityKey({
@@ -29,7 +27,6 @@ describe("subscription helpers", () => {
       "email:user@example.com",
     );
   });
-
   it("builds a cycle dedupe key from webhook id before order id", () => {
     expect(
       buildCycleDedupeKey({
@@ -45,14 +42,12 @@ describe("subscription helpers", () => {
       }),
     ).toBe("order:example.myshopify.com:order-1");
   });
-
   it("calculates the next unearned reward cycle", () => {
     expect(nextRewardCycleFor(0, 12)).toBe(12);
     expect(nextRewardCycleFor(1, 12)).toBe(12);
     expect(nextRewardCycleFor(12, 12)).toBe(24);
     expect(nextRewardCycleFor(13, 12)).toBe(24);
   });
-
   it("normalizes numeric product ids into Shopify GIDs", () => {
     expect(normalizeProductGids("123, gid://shopify/Product/456\n789")).toBe(
       "gid://shopify/Product/123,gid://shopify/Product/456,gid://shopify/Product/789",

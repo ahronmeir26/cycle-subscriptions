@@ -1,41 +1,48 @@
-import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-
 import db from "../db.server";
 import { getDashboard } from "../models/subscriptions.server";
 import { authenticate } from "../shopify.server";
 import styles from "../styles/operations.module.css";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const { program } = await getDashboard(
     session.shop,
     url.searchParams.get("programId"),
   );
-  const [earnedRewardEvents, fulfilledRewardEvents, cycleEvents] = await Promise.all([
-    db.subscriptionEvent.findMany({
-      where: { shop: session.shop, programId: program.id, type: "reward_earned" },
-      orderBy: { createdAt: "desc" },
-      take: 25,
-      include: { account: true },
-    }),
-    db.subscriptionEvent.findMany({
-      where: {
-        shop: session.shop,
-        programId: program.id,
-        type: "reward_fulfilled",
-      },
-      select: { accountId: true, cycleNumber: true },
-    }),
-    db.subscriptionEvent.findMany({
-      where: { shop: session.shop, programId: program.id, type: "cycle_recorded" },
-      orderBy: { createdAt: "desc" },
-      take: 25,
-      include: { account: true },
-    }),
-  ]);
+  const [earnedRewardEvents, fulfilledRewardEvents, cycleEvents] =
+    await Promise.all([
+      db.subscriptionEvent.findMany({
+        where: {
+          shop: session.shop,
+          programId: program.id,
+          type: "reward_earned",
+        },
+        orderBy: { createdAt: "desc" },
+        take: 25,
+        include: { account: true },
+      }),
+      db.subscriptionEvent.findMany({
+        where: {
+          shop: session.shop,
+          programId: program.id,
+          type: "reward_fulfilled",
+        },
+        select: { accountId: true, cycleNumber: true },
+      }),
+      db.subscriptionEvent.findMany({
+        where: {
+          shop: session.shop,
+          programId: program.id,
+          type: "cycle_recorded",
+        },
+        orderBy: { createdAt: "desc" },
+        take: 25,
+        include: { account: true },
+      }),
+    ]);
   const fulfilledKeys = new Set(
     fulfilledRewardEvents.map(
       (event) => `${event.accountId ?? ""}:${event.cycleNumber ?? ""}`,
@@ -50,7 +57,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function OperationsPage() {
-  const { program, rewardEvents, cycleEvents } = useLoaderData<typeof loader>();
+  const { program, rewardEvents, cycleEvents } = useLoaderData();
 
   return (
     <s-page heading="Operations">
@@ -116,6 +123,6 @@ export default function OperationsPage() {
   );
 }
 
-export const headers: HeadersFunction = (headersArgs) => {
+export const headers = (headersArgs) => {
   return boundary.headers(headersArgs);
 };

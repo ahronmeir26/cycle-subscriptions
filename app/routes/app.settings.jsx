@@ -1,13 +1,12 @@
 import { useEffect } from "react";
-import type {
-  ActionFunctionArgs,
-  HeadersFunction,
-  LoaderFunctionArgs,
+import {
+  Form,
+  useActionData,
+  useLoaderData,
+  useNavigation,
 } from "react-router";
-import { Form, useActionData, useLoaderData, useNavigation } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-
 import {
   getSelectedProgram,
   parseBoolean,
@@ -18,12 +17,7 @@ import { syncSellingPlanGroup } from "../models/selling-plans.server";
 import { authenticate } from "../shopify.server";
 import styles from "../styles/subscriptions.module.css";
 
-type ActionResult = {
-  status: "success" | "error";
-  message: string;
-};
-
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const program = await getSelectedProgram(
@@ -34,9 +28,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return { program };
 };
 
-export const action = async ({
-  request,
-}: ActionFunctionArgs): Promise<ActionResult> => {
+export const action = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const formData = await request.formData();
@@ -44,7 +36,6 @@ export const action = async ({
     String(formData.get("programId") ?? "") ||
     url.searchParams.get("programId");
   const program = await getSelectedProgram(session.shop, programId);
-
   const updated = await updateRewardSettings(session.shop, program.id, {
     name: String(formData.get("name") ?? "").trim(),
     shirtQuantity: parsePositiveInteger(formData.get("shirtQuantity"), 2, {
@@ -74,7 +65,8 @@ export const action = async ({
     } catch (error) {
       return {
         status: "error",
-        message: error instanceof Error ? error.message : "Selling plan sync failed.",
+        message:
+          error instanceof Error ? error.message : "Selling plan sync failed.",
       };
     }
   }
@@ -83,8 +75,8 @@ export const action = async ({
 };
 
 export default function SettingsPage() {
-  const { program } = useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
+  const { program } = useLoaderData();
+  const actionData = useActionData();
   const navigation = useNavigation();
   const shopify = useAppBridge();
   const isSubmitting = navigation.state === "submitting";
@@ -96,12 +88,9 @@ export default function SettingsPage() {
       });
     }
   }, [actionData, shopify]);
-
   const rewardPreview =
     program.freeEveryCycles > 0
-      ? `Every ${program.freeEveryCycles}th paid cycle earns a free shipment of ${program.shirtQuantity} shirt${
-          program.shirtQuantity === 1 ? "" : "s"
-        }.`
+      ? `Every ${program.freeEveryCycles}th paid cycle earns a free shipment of ${program.shirtQuantity} shirt${program.shirtQuantity === 1 ? "" : "s"}.`
       : "Milestone rewards are disabled.";
 
   return (
@@ -191,6 +180,6 @@ export default function SettingsPage() {
   );
 }
 
-export const headers: HeadersFunction = (headersArgs) => {
+export const headers = (headersArgs) => {
   return boundary.headers(headersArgs);
 };

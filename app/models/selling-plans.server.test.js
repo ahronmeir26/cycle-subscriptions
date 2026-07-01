@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-
 import {
   productIdsForProgram,
   sellingPlanGroupInputForProgram,
@@ -19,7 +18,6 @@ describe("selling plan helpers", () => {
       "gid://shopify/Product/3",
     ]);
   });
-
   it("builds a subscription selling plan input from cadence settings", () => {
     expect(
       sellingPlanInputForProgram(
@@ -40,7 +38,6 @@ describe("selling plan helpers", () => {
       deliveryPolicy: { recurring: { interval: "MONTH", intervalCount: 2 } },
     });
   });
-
   it("updates an existing selling plan when the program has a plan id", () => {
     const input = sellingPlanGroupInputForProgram({
       id: "program-1",

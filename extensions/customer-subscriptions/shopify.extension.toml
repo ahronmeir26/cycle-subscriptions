@@ -1,7 +1,8 @@
 # Customer account subscription extension.
 # Shows the logged-in subscriber their reward progress toward the next free
 # shipment, both as a profile summary block and a full details page.
-api_version = "2025-10"
+api_version = "2025-07"
+uid = "46cf9acb-857d-5f02-2dad-661da56042d46648dbe0"
 
 [[extensions]]
 name = "Customer subscriptions"

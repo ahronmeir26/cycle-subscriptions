@@ -1,7 +1,8 @@
 # Checkout subscription upsell extension.
 # Confirms the milestone reward when a subscription line is in the cart, and
 # nudges one-time buyers toward subscribing.
-api_version = "2025-10"
+api_version = "2025-07"
+uid = "d1780df1-82f6-6788-6348-6745ee17561ba1178a7a"
 
 [[extensions]]
 name = "Subscription upsell"

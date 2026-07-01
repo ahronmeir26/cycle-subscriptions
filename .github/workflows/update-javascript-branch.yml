@@ -105,7 +105,11 @@ jobs:
 
       - name: Create Javascript PR
         run: |
-          gh pr view --json mergedAt -q ".mergedAt" javascript_updates | grep -E "^$" || \
-          gh pr create -B javascript -H javascript_updates --title 'Convert template to Javascript' --body 'This is an automated PR that converts the latest changes from Typescript to Javascript'
+          if gh pr view javascript_updates >/dev/null 2>&1; then
+            echo "Javascript PR already exists"
+          else
+            gh pr create -B javascript -H javascript_updates --title 'Convert template to Javascript' --body 'This is an automated PR that converts the latest changes from Typescript to Javascript' || \
+              echo "::warning::Unable to create Javascript PR. The javascript_updates branch was pushed, but repository settings may prevent GitHub Actions from opening pull requests."
+          fi
         env:
           GH_TOKEN: ${{ github.token }}

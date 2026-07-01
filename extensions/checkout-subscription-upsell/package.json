@@ -6,11 +6,11 @@
   "dependencies": {
     "@shopify/ui-extensions": "2025.7.4",
     "@shopify/ui-extensions-react": "2025.7.4",
-    "react": "^18.2.0",
+    "react": "^19.2.6",
     "react-reconciler": "^0.29.2"
   },
   "devDependencies": {
-    "@types/react": "^18.2.0",
+    "@types/react": "^19.2.15",
     "typescript": "^5.9.3"
   }
 }
